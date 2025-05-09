@@ -1,0 +1,7 @@
+services:
+  app:
+    build: .
+    env_file: .env
+    network_mode: host
+    pid: host
+    container_name: tcp-server

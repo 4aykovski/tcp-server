@@ -3,7 +3,6 @@ package room
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net"
 	"strconv"
@@ -36,6 +35,10 @@ func (r *Room) handleConnection(c net.Conn) {
 		return
 	}
 
+	slog.Debug("got request", slog.Any("request", req), slog.String("from", c.RemoteAddr().String()))
+
+	slog.Debug("check if client in room", slog.String("from", c.RemoteAddr().String()), slog.Any("room clients", r.users))
+
 	// проверяем есть ли клиент в комнате
 	r.mu.Lock()
 	_, ok := r.users[req.ID]
@@ -44,6 +47,8 @@ func (r *Room) handleConnection(c net.Conn) {
 		slog.Error("client not found", slog.String("from", c.RemoteAddr().String()))
 		return
 	}
+
+	slog.Debug("client in room", slog.String("from", c.RemoteAddr().String()), slog.Any("room clients", r.users))
 
 	// в зависимости от типа запроса вызываем соответствующий обработчик
 	switch req.Type {
@@ -80,6 +85,8 @@ func (r *Room) handleUnknownRequest(c net.Conn) {
 }
 
 func (r *Room) handleConnectRoomRequest(c net.Conn, buf []byte) {
+	slog.Debug("got connect room request", slog.String("from", c.RemoteAddr().String()))
+
 	// парсим запрос
 	var req messages.ConnectRoomRequest
 	err := json.Unmarshal(buf, &req)
@@ -92,6 +99,8 @@ func (r *Room) handleConnectRoomRequest(c net.Conn, buf []byte) {
 		slog.Info("client already in room", slog.String("from", c.RemoteAddr().String()))
 		return
 	}
+
+	slog.Debug("client not in room, adding")
 
 	// сохраняем пользователя
 	portStr := strings.Split(req.Addr, ":")[1]
@@ -117,6 +126,8 @@ func (r *Room) handleConnectRoomRequest(c net.Conn, buf []byte) {
 }
 
 func (r *Room) handleDisconnectRoomRequest(c net.Conn, req messages.BaseRequest) {
+	slog.Debug("got disconnect room request", slog.String("from", c.RemoteAddr().String()))
+
 	r.mu.Lock()
 	delete(r.users, req.ID)
 	r.mu.Unlock()
@@ -131,7 +142,11 @@ func (r *Room) handleDisconnectRoomRequest(c net.Conn, req messages.BaseRequest)
 		return
 	}
 
+	slog.Debug("check if room empty")
+
 	if len(r.users) == 0 {
+		slog.Debug("room empty, closing")
+
 		err = r.tcp.Close()
 		if err != nil {
 			slog.Error("can't close tcp listener", slog.String("error", err.Error()))
@@ -141,6 +156,8 @@ func (r *Room) handleDisconnectRoomRequest(c net.Conn, req messages.BaseRequest)
 }
 
 func (r *Room) handleSendMessageRequest(c net.Conn, buf []byte) {
+	slog.Debug("got send message request", slog.String("from", c.RemoteAddr().String()))
+
 	// парсим запрос
 	var req messages.SendMessageRequest
 	err := json.Unmarshal(buf, &req)
@@ -153,14 +170,14 @@ func (r *Room) handleSendMessageRequest(c net.Conn, buf []byte) {
 	defer r.mu.Unlock()
 	addr := r.users[req.ID].IP.String() + ":" + strconv.Itoa(r.users[req.ID].Port)
 	req.Addr = addr
-	fmt.Println(r.users)
+
+	slog.Debug("sending message to clients in room", slog.String("from", addr), slog.Any("message", req.Message))
+
 	// отправляем сообщение всем пользователям
 	for user, conn := range r.users {
 		if user == req.ID {
 			continue
 		}
-
-		fmt.Println(addr)
 
 		err = utils.SendRequest(conn, req)
 		if err != nil {
@@ -169,6 +186,8 @@ func (r *Room) handleSendMessageRequest(c net.Conn, buf []byte) {
 			continue
 		}
 	}
+
+	slog.Debug("message sent", slog.String("from", addr), slog.Any("message", req.Message))
 
 	// сохраняем сообщение в историю
 	msg := Message{
@@ -189,5 +208,5 @@ func (r *Room) handleSendMessageRequest(c net.Conn, buf []byte) {
 		return
 	}
 
-	fmt.Println(r.history)
+	slog.Debug("checking history", slog.Any("history", r.history))
 }

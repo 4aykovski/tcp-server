@@ -34,6 +34,8 @@ func (s *Server) handleConnection(c net.Conn) {
 		return
 	}
 
+	slog.Debug("got request", slog.Any("request", req), slog.String("from", c.RemoteAddr().String()))
+
 	// в зависимости от типа запроса вызываем соответствующий обработчик
 	switch req.Type {
 	case messages.CreateRoomRequestType:
@@ -49,6 +51,8 @@ func (s *Server) handleConnection(c net.Conn) {
 
 // handleCreateRoomRequest обрабатывает запрос на создание комнаты
 func (s *Server) handleCreateRoomRequest(c net.Conn, req messages.BaseRequest) {
+	slog.Debug("got create room request", slog.String("from", c.RemoteAddr().String()))
+
 	// создаем комнату
 	r := room.New(s.tcp.Addr().(*net.TCPAddr).IP.String(), req.ID)
 
@@ -65,6 +69,8 @@ func (s *Server) handleCreateRoomRequest(c net.Conn, req messages.BaseRequest) {
 		slog.Error("can't send response", slog.String("error", err.Error()), slog.String("from", c.RemoteAddr().String()))
 		return
 	}
+
+	slog.Debug("room created", slog.Any("room-id", r.ID), slog.String("from", c.RemoteAddr().String()), slog.Any("room", s.rooms[r.ID]), slog.Any("rooms", s.rooms))
 }
 
 // handleUnknownRequest обрабатывает неизвестный запрос

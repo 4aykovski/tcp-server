@@ -3,10 +3,13 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 )
 
 func SendResponse(c net.Conn, resp any) error {
+	slog.Debug("sending response", slog.Any("resp", resp))
+
 	err := json.NewEncoder(c).Encode(resp)
 	if err != nil {
 		return fmt.Errorf("can't encode response: %w", err)

@@ -1,6 +1,9 @@
 package config
 
-import "github.com/ilyakaznacheev/cleanenv"
+import (
+	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/joho/godotenv"
+)
 
 // C структура, описывающая конфиг приложения
 type C struct {
@@ -9,12 +12,16 @@ type C struct {
 
 // TCP структура, описывающая конфиг tcp-сервера
 type TCP struct {
-	Port int    `env:"TCP_SERVER_PORT" env-default:"8000"`
-	Host string `env:"TCP_SERVER_HOST" env-default:"127.0.0.1"`
+	Port int    `env:"TCP_SERVER_PORT" env-required:"true"`
+	Host string `env:"TCP_SERVER_HOST" env-required:"true"`
 }
 
 // MustLoad инициализирует конфиг приложения
 func MustLoad() *C {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("can't load .env")
+	}
+
 	var cfg C
 
 	// загружаем конфиг из переменных окружения

@@ -19,7 +19,7 @@ type TCP struct {
 // MustLoad инициализирует конфиг приложения
 func MustLoad() *C {
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("can't load .env")
+		panic(err)
 	}
 
 	var cfg C
